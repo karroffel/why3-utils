@@ -227,6 +227,7 @@ module ScopeMap
   let function pop_scope (tr: t 'v) : t 'v
     requires { length tr > 1 }
     ensures { length tr = length result + 1 }
+    ensures { exists sc. tr.scopes = Cons sc result.scopes }
   = match tr.scopes with
     | Nil -> absurd
     | Cons _ rest ->
@@ -282,30 +283,9 @@ module ScopeMap
         end
     end
   
-    (*let rec inner (sc: list (TM.t 'v)) : option 'v
-      variant { sc }
-      requires { forall s. LM.mem s sc -> TM.tree_is_sorted s }
-      ensures { not is_none result <-> for_some (TM.mem k) sc }
-      ensures { forall v. result = Some v -> for_some (fun s -> TM.get k s = Some v) sc }
-    = match sc with
-      | Nil -> None
-      | Cons x rest ->
-          match TM.get k x with
-          | None -> inner rest
-          | Some v ->
-              assert { TM.mem k x };
-              assert { TM.get k x = Some v };
-              assert { for_some (fun s -> s = x) sc };
-              assert { for_some (fun s -> TM.get k s = Some v) sc };
-              Some v
-          end
-      end
-    in inner tr.scopes
-    *)
-  
   let function new_scope (tr: t 'v) : t 'v
+    ensures { forall k. TM.get k (latest_scope result) = None }
   = { scopes = Cons (TM.empty ()) tr.scopes }
-  
 
   
   let lemma get_in_latest_implies_get_in_full (tr: t 'v) (k: key) (v: 'v)
@@ -314,9 +294,7 @@ module ScopeMap
   = assert { TM.get k (latest_scope tr) = Some v -> TM.mem k (latest_scope tr) };
     assert { TM.mem k (latest_scope tr) -> for_some (TM.mem k) tr };
     assert { TM.get k (latest_scope tr) = Some v -> for_some (fun s -> TM.get k s = Some v) tr };
-    
     assert { for_some (TM.mem k) tr -> not is_none (get k tr) };
-    
     ()
   
   let function set (k: key) (v: 'v) (tr: t 'v) : t 'v
@@ -335,6 +313,37 @@ module ScopeMap
         assert { forall sc. LM.mem sc rest -> TM.tree_is_sorted sc };
         { scopes = Cons s' rest }
     end
+
+  goal insert_implies_lookup:
+    forall k,v:'v.
+      let sm = empty () in
+      let sm = new_scope sm in
+      let sm = set k v sm in
+      get k sm = Some v
+  
+  goal insert_twice_implies_latest_value:
+    forall k,v0:'v,v1:'v.
+      v0 <> v1 ->
+      let sm = empty () in
+      let sm = new_scope sm in
+      let sm = set k v0 sm in
+      let sm = set k v1 sm in
+      get k sm = Some v1
+  
+  (*
+   * This doesn't work yet, both `new_scope`
+   * and `pop_scope` need further specification
+   *)
+  (*
+  goal insert_pop_implies_none:
+    forall k,v:'v.
+      let sm = empty () in
+      let sm = new_scope sm in
+      let sm = set k v sm in
+      let sm = pop_scope sm in
+      get k sm = None
+  *)
+      
 
 end
 
