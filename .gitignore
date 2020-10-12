@@ -1,2 +1,6 @@
+# SPDX-FileCopyrightText: karroffel
+#
+# SPDX-License-Identifier: CC0-1.0
+
 *.bak
 /**/why3shapes.gz
