@@ -1,0 +1,425 @@
+module TreeMap
+
+  use int.Int
+  use int.MinMax
+  use option.Option
+  
+  use set.Fset
+
+  type key
+  
+  val (=) (a b: key) : bool
+    ensures { result <-> a = b }
+  
+  predicate (<) (a b: key)
+  
+  val lt (a b: key) : bool
+    ensures { result <-> a < b }
+  
+  let predicate (>) (a b: key) = not (lt a b) && a <> b
+
+
+  axiom altb_implies_not_blta:
+    forall a,b.
+      a < b <-> ((not a = b) /\ not b < a)
+  
+  axiom lt_order:
+    forall a,b,c.
+      a < b /\ b < c -> a < c
+  
+  axiom eq_cant_be_lt:
+    forall a,b.
+      a = b -> not a < b
+  
+  
+  type t 'v = Leaf
+            | Branch (t 'v) (key, 'v) (t 'v)
+  
+  function keys [@unfold] (tr: t 'v) : fset key
+  = match tr with
+    | Leaf -> empty
+    | Branch l (k, _) r ->
+        let l' = keys l in
+        let r' = keys r in
+        let ks = union l' r' in
+        add k ks
+    end
+  
+  function kvs [@unfold] (tr: t 'v) : fset (key, 'v)
+  = match tr with
+    | Leaf -> empty
+    | Branch l (k, v) r ->
+        let l' = kvs l in
+        let r' = kvs r in
+        let ks = union l' r' in
+        add (k, v) ks
+    end
+  
+  function values [@unfold] (tr: t 'v) : fset 'v
+  = match tr with
+    | Leaf -> empty
+    | Branch l (_, v) r ->
+        let l' = values l in
+        let r' = values r in
+        let ks = union l' r' in
+        add v ks
+    end
+  
+  let predicate is_leaf (tr: t 'v)
+  = match tr with
+    | Leaf -> true
+    | _ -> false
+    end
+  
+  let predicate is_branch (tr: t 'v)
+  = match tr with
+    | Branch _ _ _ -> true
+    | _ -> false
+    end
+  
+  predicate for_all (tr: t 'v) (f: key -> 'v -> bool)
+  = forall k,v. mem (k,v) (kvs tr) -> f k v
+  
+  predicate all_smaller_than (tr: t 'v) (k: key)
+  = (forall k'. mem k' (keys tr) -> (k' < k))
+    /\ (forall k'. mem k' (keys tr) -> (k <> k'))
+  
+  predicate all_larger_than (tr: t 'v) (k: key)
+  = (forall k'. mem k' (keys tr) -> (k' > k))
+    /\ (forall k'. mem k' (keys tr) -> (k <> k'))
+  
+  
+  inductive tree_is_sorted (tr: t 'v) =
+  | TS_Leaf: tree_is_sorted (Leaf: t 'v)
+  | TS_Branch:
+      forall k,v: 'v,l,r.
+        tree_is_sorted l /\
+        tree_is_sorted r /\
+        all_smaller_than l k
+          /\ (forall v. not mem (k,v) (kvs l))
+          /\ (forall k',v. k' > k -> not mem (k',v) (kvs l)) /\
+        all_larger_than r k
+          /\ (forall v. not mem (k,v) (kvs r))
+          /\ (forall k',v. k' < k -> not mem (k',v) (kvs r)) 
+      -> tree_is_sorted (Branch l (k, v) r)
+  
+  let function empty () : t 'v
+    ensures { tree_is_sorted result }
+  = Leaf
+  
+  let rec function mem (k: key) (tr: t 'v)  : bool
+    variant { tr }
+    requires { tree_is_sorted tr }
+    ensures { result <-> mem k (keys tr) }
+  = match tr with
+    | Leaf -> false
+    | Branch l (k', _) r ->
+        if k = k' then
+          true
+        else if lt k k' then
+          mem k l
+        else
+          mem k r
+    end
+  
+
+  
+  let rec function get (k: key) (tr: t 'v) : option 'v
+    variant { tr }
+    requires { tree_is_sorted tr }
+    ensures { not is_none result <-> mem k tr }
+    ensures { forall v. Fset.mem (k,v) (kvs tr) -> result = Some v }
+  = match tr with
+    | Leaf -> None
+    | Branch l (k', v) r ->
+        if k = k' then begin
+          assert { Fset.mem (k, v) (kvs tr) };
+          Some v
+        end else if lt k k' then begin
+          assert { tree_is_sorted r };
+          assert { all_larger_than r k' };
+          assert { all_larger_than r k };
+          assert { forall v. not Fset.mem (k,v) (kvs r) };
+          get k l
+        end else begin
+          get k r
+        end
+    end
+  
+  let rec function set (k: key) (v: 'v) (tr: t 'v)  : t 'v
+    variant { tr }
+    requires { tree_is_sorted tr }
+    ensures { tree_is_sorted result }
+    ensures { mem k result }
+    ensures { get k result = Some v }
+    ensures { Fset.mem (k, v) (kvs result) }
+    ensures { forall k',v'. k <> k' /\ not Fset.mem (k',v') (kvs tr) -> not Fset.mem (k',v') (kvs result) }
+    ensures { forall k'. k' <> k -> mem k' tr <-> mem k' result }
+    ensures { forall k'. k' <> k -> get k' tr = get k' result }
+    ensures { forall k'. k < k' /\ all_smaller_than tr k' -> all_smaller_than result k' }
+    ensures { forall k'. k' < k /\ all_larger_than tr k' -> all_larger_than result k' }
+  = match tr with
+    | Leaf -> Branch Leaf (k, v) Leaf
+    | Branch l (kfound, v') r ->
+        if k = kfound then begin
+          assert { forall v''. not Fset.mem (kfound, v'') (kvs l) };
+          assert { forall v''. not Fset.mem (kfound, v'') (kvs r) };
+          Branch l (kfound, v) r
+        end else if lt k kfound then begin
+          assert { forall v''. not Fset.mem (kfound, v'') (kvs l) };
+          assert { forall v''. not Fset.mem (kfound, v'') (kvs r) };
+          
+          let l' = set k v l in
+          assert { forall k',v'. k <> k' /\ not Fset.mem (k',v') (kvs l) -> not Fset.mem (k',v') (kvs l') };
+          Branch l' (kfound, v') r
+        end else
+          Branch l (kfound, v') (set k v r)
+    end
+end
+
+
+module ScopeMap
+  
+  use int.Int
+  use list.List
+  use list.Length
+  use list.Quant
+  use list.Mem as LM
+  use option.Option
+  
+  type key
+  
+  clone TreeMap as TM with
+    axiom .,
+    type key = key
+    
+  
+  type t 'v = { scopes: list (TM.t 'v) }
+    invariant { not is_nil scopes }
+    invariant { forall sc. LM.mem sc scopes -> TM.tree_is_sorted sc }
+    by { scopes = Cons (TM.empty ()) Nil }
+  
+  meta coercion function scopes
+  
+  let function empty () : t 'v
+  = { scopes = Cons (TM.empty ()) Nil }
+  
+  
+  let function mem (k: key) (tr: t 'v) : bool
+    ensures { result <-> for_some (TM.mem k) tr.scopes }
+  = let rec inner (scs: list (TM.t 'v)) : bool
+      variant { scs }
+      requires { for_all (TM.tree_is_sorted) scs }
+      ensures { result <-> for_some (TM.mem k) scs }
+    = match scs with
+      | Nil -> false
+      | Cons s rest ->
+          TM.mem k s || inner rest
+      end
+    in inner tr.scopes
+  
+  let function pop_scope (tr: t 'v) : t 'v
+    requires { length tr > 1 }
+    ensures { length tr = length result + 1 }
+  = match tr.scopes with
+    | Nil -> absurd
+    | Cons _ rest ->
+        assert { forall sc. LM.mem sc tr.scopes -> TM.tree_is_sorted sc };
+        assert { forall sc. LM.mem sc rest -> TM.tree_is_sorted sc };
+        { scopes = rest }
+    end
+  
+  let function latest_scope (tr: t 'v) : TM.t 'v
+    ensures { exists rest. tr.scopes = Cons result rest }
+    ensures { TM.tree_is_sorted result }
+  = match tr.scopes with
+    | Nil -> absurd
+    | Cons x _ -> x
+    end 
+ 
+  let rec function get (k: key) (tr: t 'v) : option 'v
+    variant { length tr.scopes }
+    requires { forall s. LM.mem s tr.scopes -> TM.tree_is_sorted s }
+    ensures { not is_none result <-> mem k tr }
+    ensures { not is_none result <-> for_some (TM.mem k) tr.scopes }
+    ensures { forall v. result = Some v -> for_some (fun s -> TM.get k s = Some v) tr.scopes }
+    ensures { forall v. TM.get k (latest_scope tr) = Some v -> result = Some v }
+    (* ensures { forall v. for_some (fun s -> TM.get k s = Some v) tr.scopes -> result = Some v } *)
+  = match tr.scopes with
+    | Nil -> absurd
+    | Cons sc rest ->
+        match TM.get k sc with
+        | None ->
+            if not is_nil rest then begin
+              let tr' = { scopes = rest } in
+              assert { forall f:(TM.t 'v -> bool).
+                for_some (fun s -> f s) tr'.scopes
+                  -> for_some (fun s -> f s) tr.scopes
+              };
+              let res = get k tr' in
+              assert { forall v. res = Some v ->
+                for_some (fun s -> TM.get k s = Some v) tr'.scopes
+              };
+              assert { forall v. res = Some v /\
+                for_some (fun s -> TM.get k s = Some v) tr'.scopes
+                  -> for_some (fun s -> TM.get k s = Some v) tr.scopes
+              };
+              res
+            end else
+              None
+        | Some v ->
+            assert { TM.mem k sc };
+            assert { TM.get k sc = Some v };
+            assert { for_some (fun s -> s = sc) tr.scopes };
+            assert { for_some (fun s -> TM.get k s = Some v) tr.scopes };
+            Some v
+        end
+    end
+  
+    (*let rec inner (sc: list (TM.t 'v)) : option 'v
+      variant { sc }
+      requires { forall s. LM.mem s sc -> TM.tree_is_sorted s }
+      ensures { not is_none result <-> for_some (TM.mem k) sc }
+      ensures { forall v. result = Some v -> for_some (fun s -> TM.get k s = Some v) sc }
+    = match sc with
+      | Nil -> None
+      | Cons x rest ->
+          match TM.get k x with
+          | None -> inner rest
+          | Some v ->
+              assert { TM.mem k x };
+              assert { TM.get k x = Some v };
+              assert { for_some (fun s -> s = x) sc };
+              assert { for_some (fun s -> TM.get k s = Some v) sc };
+              Some v
+          end
+      end
+    in inner tr.scopes
+    *)
+  
+  let function new_scope (tr: t 'v) : t 'v
+  = { scopes = Cons (TM.empty ()) tr.scopes }
+  
+
+  
+  let lemma get_in_latest_implies_get_in_full (tr: t 'v) (k: key) (v: 'v)
+    requires { TM.get k (latest_scope tr) = Some v }
+    ensures { get k tr = Some v }
+  = assert { TM.get k (latest_scope tr) = Some v -> TM.mem k (latest_scope tr) };
+    assert { TM.mem k (latest_scope tr) -> for_some (TM.mem k) tr };
+    assert { TM.get k (latest_scope tr) = Some v -> for_some (fun s -> TM.get k s = Some v) tr };
+    
+    assert { for_some (TM.mem k) tr -> not is_none (get k tr) };
+    
+    ()
+  
+  let function set (k: key) (v: 'v) (tr: t 'v) : t 'v
+    ensures { mem k result }
+    ensures { TM.get k (latest_scope result) = Some v }
+    ensures { get k result = Some v }
+    ensures { forall k'. mem k' tr -> mem k' result }
+  = let s = latest_scope tr in
+    let s' = TM.set k v s in
+    assert { TM.tree_is_sorted s' };
+    assert { TM.get k s' = Some v };
+    match tr.scopes with
+    | Nil -> absurd
+    | Cons _ rest ->
+        assert { forall sc. LM.mem sc (tr.scopes) -> TM.tree_is_sorted sc };
+        assert { forall sc. LM.mem sc rest -> TM.tree_is_sorted sc };
+        { scopes = Cons s' rest }
+    end
+
+end
+
+
+module StringMap
+  use int.Int
+  use int.MinMax
+  use string.String
+  use string.Char
+  
+  predicate str_lte (a b: string)
+  = if length a > length b
+      then false
+      else forall idx. 0 <= idx < length a -> code a[idx] <= code b[idx]
+  
+  predicate str_lt (a b: string)
+  = str_lte a b /\ a <> b
+  
+  lemma lt_implies_lte:
+    forall a,b.
+      str_lt a b -> str_lte a b
+  
+  use string.OCaml
+  use string.StringBuffer
+  use mach.int.Int63
+  
+  let length (a: string) : int63
+    ensures { result = String.length a }
+  = let buf = create 100 in (* does the size matter? *)
+    add_string buf a;
+    StringBuffer.length buf
+  
+  let lte (a b: string) : bool    
+    ensures { result -> String.length a <= String.length b -> forall i. 0 <= i < String.length a -> code a[i] <= code b[i] }
+    ensures { (not result) -> String.length a > String.length b \/ (exists i. 0 <= i < min (String.length a) (String.length b) /\ code a[i] > code b[i]) }
+    ensures { result -> str_lte a b }
+  = let la = length a in
+    let lb = length b in
+    
+    if la > lb
+      then return false;
+    
+    if la = 0 then (
+      return true;
+    );
+    
+    assert { String.length a <= String.length b };
+    assert { la = min (String.length a) (String.length b) };
+    let ref idx = 0 in
+    while idx < la do
+      variant { la - idx }
+      invariant { 0 <= idx < la }
+      invariant { 0 <= idx < min (String.length a) (String.length b) }
+      invariant { forall i. 0 <= i < idx -> code a[i] <= code b[i] }
+      
+      if code a[idx] > code b[idx] then
+        return false;
+      
+      if idx + 1 = la then break;
+      idx <- idx + 1;
+    done;
+    
+    true
+  
+  let lt_v (a b: string) : bool
+    ensures { result -> String.length a <= String.length b -> forall i. 0 <= i < String.length a -> code a[i] <= code b[i] /\ a <> b }
+    ensures { result <-> str_lt a b }
+  = if lte a b then
+      not (a = b)
+    else
+      false
+  
+  axiom strlt_implies_not_strlt:
+    forall a,b.
+      str_lt a b <-> not str_lt b a
+  
+  clone export TreeMap with
+    type key = string,
+    val (=) = OCaml.(=),
+    val lt = lt_v,
+    predicate (<) = str_lt
+    
+end
+
+module IntMap
+  use int.Int
+
+  clone export TreeMap with
+    type key = int,
+    val (=) = Int.(=),
+    val lt = (<),
+    predicate (<) = (<)
+    
+end
