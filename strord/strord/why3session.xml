@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE why3session PUBLIC "-//Why3//proof session v5//EN"
+"http://why3.lri.fr/why3session.dtd">
+<why3session shape_version="6">
+<prover id="0" name="Alt-Ergo" version="2.2.0" timelimit="1" steplimit="0" memlimit="1000"/>
+<prover id="1" name="CVC4" version="1.7" timelimit="1" steplimit="0" memlimit="1000"/>
+<file format="whyml" proved="true">
+<path name=".."/><path name="strord.mlw"/>
+<theory name="StrOrd" proved="true">
+ <goal name="lt_implies_lte" proved="true">
+ <proof prover="1"><result status="valid" time="0.05" steps="8358"/></proof>
+ </goal>
+ <goal name="length&#39;vc" expl="VC for length" proved="true">
+ <proof prover="1"><result status="valid" time="0.05" steps="6423"/></proof>
+ </goal>
+ <goal name="lte&#39;vc" expl="VC for lte" proved="true">
+ <transf name="split_vc" proved="true" >
+  <goal name="lte&#39;vc.0" expl="postcondition" proved="true">
+  <proof prover="0"><result status="valid" time="0.01" steps="18"/></proof>
+  <proof prover="1"><result status="highfailure" time="0.39" steps="8435"/></proof>
+  </goal>
+  <goal name="lte&#39;vc.1" expl="postcondition" proved="true">
+  <proof prover="0"><result status="valid" time="0.02" steps="59"/></proof>
+  <proof prover="1"><result status="timeout" time="1.00" steps="114193"/></proof>
+  </goal>
+  <goal name="lte&#39;vc.2" expl="assertion" proved="true">
+  <proof prover="1"><result status="valid" time="0.04" steps="7895"/></proof>
+  </goal>
+  <goal name="lte&#39;vc.3" expl="assertion" proved="true">
+  <proof prover="0"><result status="valid" time="0.02" steps="25"/></proof>
+  <proof prover="1"><result status="highfailure" time="0.38" steps="8416"/></proof>
+  </goal>
+  <goal name="lte&#39;vc.4" expl="loop invariant init" proved="true">
+  <proof prover="1"><result status="valid" time="0.04" steps="7952"/></proof>
+  </goal>
+  <goal name="lte&#39;vc.5" expl="loop invariant init" proved="true">
+  <proof prover="1"><result status="valid" time="0.04" steps="7976"/></proof>
+  </goal>
+  <goal name="lte&#39;vc.6" expl="loop invariant init" proved="true">
+  <proof prover="1"><result status="valid" time="0.04" steps="7116"/></proof>
+  </goal>
+  <goal name="lte&#39;vc.7" expl="postcondition" proved="true">
+  <proof prover="0"><result status="valid" time="0.03" steps="138"/></proof>
+  <proof prover="1"><result status="highfailure" time="0.38" steps="9369"/></proof>
+  </goal>
+  <goal name="lte&#39;vc.8" expl="integer overflow" proved="true">
+  <proof prover="0"><result status="valid" time="0.02" steps="38"/></proof>
+  <proof prover="1"><result status="highfailure" time="0.36" steps="8986"/></proof>
+  </goal>
+  <goal name="lte&#39;vc.9" expl="postcondition" proved="true">
+  <proof prover="0"><result status="valid" time="0.04" steps="157"/></proof>
+  <proof prover="1"><result status="timeout" time="1.00" steps="107012"/></proof>
+  </goal>
+  <goal name="lte&#39;vc.10" expl="integer overflow" proved="true">
+  <proof prover="0"><result status="valid" time="0.02" steps="44"/></proof>
+  <proof prover="1"><result status="highfailure" time="0.36" steps="9410"/></proof>
+  </goal>
+  <goal name="lte&#39;vc.11" expl="loop variant decrease" proved="true">
+  <proof prover="1"><result status="valid" time="0.04" steps="8347"/></proof>
+  </goal>
+  <goal name="lte&#39;vc.12" expl="loop invariant preservation" proved="true">
+  <proof prover="1"><result status="valid" time="0.05" steps="8518"/></proof>
+  </goal>
+  <goal name="lte&#39;vc.13" expl="loop invariant preservation" proved="true">
+  <proof prover="1"><result status="valid" time="0.04" steps="8504"/></proof>
+  </goal>
+  <goal name="lte&#39;vc.14" expl="loop invariant preservation" proved="true">
+  <proof prover="0"><result status="valid" time="0.02" steps="53"/></proof>
+  <proof prover="1"><result status="timeout" time="1.00" steps="131141"/></proof>
+  </goal>
+  <goal name="lte&#39;vc.15" expl="postcondition" proved="true">
+  <proof prover="1"><result status="valid" time="0.03" steps="7195"/></proof>
+  </goal>
+ </transf>
+ </goal>
+ <goal name="lt&#39;vc" expl="VC for lt" proved="true">
+ <proof prover="1"><result status="valid" time="0.03" steps="8027"/></proof>
+ </goal>
+ <goal name="altb_implies_not_blta" proved="true">
+ <transf name="split_vc" proved="true" >
+  <goal name="altb_implies_not_blta.0" proved="true">
+  <proof prover="1"><result status="valid" time="0.03" steps="6872"/></proof>
+  </goal>
+  <goal name="altb_implies_not_blta.1" proved="true">
+  <proof prover="1"><result status="valid" time="0.42" steps="50551"/></proof>
+  </goal>
+  <goal name="altb_implies_not_blta.2" proved="true">
+  <proof prover="1"><result status="valid" time="0.70" steps="68436"/></proof>
+  </goal>
+ </transf>
+ </goal>
+ <goal name="lt_order" proved="true">
+ <proof prover="0"><result status="valid" time="0.01" steps="16"/></proof>
+ <proof prover="1"><result status="timeout" time="1.00" steps="91554"/></proof>
+ </goal>
+ <goal name="eq_cant_be_lt" proved="true">
+ <proof prover="1"><result status="valid" time="0.03" steps="7259"/></proof>
+ </goal>
+</theory>
+</file>
+</why3session>

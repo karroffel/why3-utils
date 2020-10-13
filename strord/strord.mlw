@@ -1,0 +1,108 @@
+(*
+ * SPDX-FileCopyrightText: karroffel
+ *
+ * SPDX-License-Identifier: OSL-3.0
+ *)
+
+module StrOrd
+
+  use int.Int
+  use int.MinMax
+  use string.String
+  use string.Char
+  use string.OCaml
+
+
+  axiom extensionality_bidirectional:
+    (* The extensionality axiom in string.String
+     * only specifies that if lengths and contents are
+     * equal then the strings are equal, but not that
+     * if either are not equal the strings are unequal.
+     *)
+    forall a,b.
+      eq_string a b <-> a = b
+  
+  
+  predicate str_lte (a b: string)
+  = if length a > length b
+      then false
+      else forall idx. 0 <= idx < length a -> code a[idx] <= code b[idx]
+  
+  predicate str_lt (a b: string)
+  = str_lte a b /\ a <> b
+  
+  lemma lt_implies_lte:
+    forall a,b.
+      str_lt a b -> str_lte a b
+  
+  use string.OCaml
+  use string.StringBuffer
+  use mach.int.Int63
+  
+  (* This is a super terrible hack and I hate it.
+   * OCaml.length is marked as partial, which means it can't
+   * be used in any non-partial functions.
+   * For *some reason* that is not true for StringBuffer.length
+   * so doing this *technically* will give the string length
+   * without being partial.
+   *)
+  let length (a: string) : int63
+    ensures { result = String.length a }
+  = OCaml.length a
+    (* Hacky workaround for partial poisoning *)
+    (*
+    let buf = create 100 in (* does the size matter? *)
+    add_string buf a;
+    StringBuffer.length buf
+    *)
+  
+  let lte (a b: string) : bool
+    ensures { result <-> str_lte a b }
+  = let la = length a in
+    let lb = length b in
+    
+    if la > lb
+      then return false;
+    
+    if la = 0 then (
+      return true;
+    );
+    
+    assert { String.length a <= String.length b };
+    assert { la = min (String.length a) (String.length b) };
+    let ref idx = 0 in
+    while idx < la do
+      variant { la - idx }
+      invariant { 0 <= idx < la }
+      invariant { 0 <= idx < min (String.length a) (String.length b) }
+      invariant { forall i. 0 <= i < idx -> code a[i] <= code b[i] }
+      
+      if code a[idx] > code b[idx] then
+        return false;
+      
+      if idx + 1 = la then break;
+      idx <- idx + 1;
+    done;
+    
+    true
+  
+  let lt (a b: string) : bool
+    ensures { result <-> str_lt a b }
+  = if lte a b then
+      not (a = b)
+    else
+      false
+
+  lemma altb_implies_not_blta:
+    forall a,b.
+      lt a b <-> ((not a = b) /\ not lt b a)
+  
+  lemma lt_order:
+    forall a,b,c.
+      lt a b /\ lt b c -> lt a c
+  
+  lemma eq_cant_be_lt:
+    forall a,b.
+      a = b -> not lt a b
+
+end
